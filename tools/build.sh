@@ -26,6 +26,9 @@ for dir in cache logs session uploads debugbar; do
   mkdir -p "$OUT/yeastie_api/writable/$dir"
   cp "writable/$dir/index.html" "$OUT/yeastie_api/writable/$dir/" 2>/dev/null || true
 done
+# spark changes into public/ next to it; the real front controller lives in the docroot.
+mkdir -p "$OUT/yeastie_api/public"
+printf 'Require all denied\n' > "$OUT/yeastie_api/public/.htaccess"
 mkdir -p "$OUT/yeastie_api/secrets"
 printf 'Require all denied\n' > "$OUT/yeastie_api/secrets/.htaccess"
 printf 'Require all denied\n' > "$OUT/yeastie_api/.htaccess"
