@@ -13,9 +13,7 @@ Adres API: `https://yeastie.cprojekt.pl/api/v1/`.
 ## 1. Hosting (raz)
 
 1. **PHP 8.5** dla domeny (MultiPHP Manager) z rozszerzeniami `mysqli`, `intl`, `mbstring`, `curl`, `openssl`. CodeIgniter łączy się z bazą przez **`mysqli`**, więc to rozszerzenie musi być włączone.
-2. **MariaDB**: baza `<konto>_yeastie` i dwóch użytkowników:
-   - API: `SELECT, INSERT, UPDATE, DELETE`,
-   - migracje: dodatkowo `CREATE, ALTER, DROP, INDEX, REFERENCES`.
+2. **MariaDB**: baza `<konto>_yeastie` i użytkownik z **ALL PRIVILEGES** do niej. Jeśli hosting pozwala na drugiego użytkownika, można rozdzielić konta: API tylko `SELECT, INSERT, UPDATE, DELETE`, migracje dodatkowo `CREATE, ALTER, DROP, INDEX, REFERENCES` (`database.migrations.*` w `.env`).
 3. Sprawdź w cPanelu automatyczne kopie bazy (otwarta decyzja 2).
 
 ## 2. Google (raz)
@@ -52,19 +50,25 @@ Paczki nie zawierają `.env`, kluczy ani narzędzi deweloperskich.
 
 ## 5. Konfiguracja
 
-1. `~/yeastie_api/.env` na wzór `env.example` (uprawnienia `600`): oba konta bazy, `yeastie.firebaseProjectId = yeastie-99dca`, ścieżka klucza konta usługi, ustawienia Pub/Sub.
+1. `~/yeastie_api/.env` na wzór `env.example` (uprawnienia `600`): konto bazy, `yeastie.firebaseProjectId = yeastie-99dca`, ścieżka klucza konta usługi, ustawienia Pub/Sub.
 2. `~/yeastie_api/writable/` musi być zapisywalne dla PHP (cache kluczy Google, logi, limit żądań).
 
 ## 6. Migracje
 
-Kontem migracji (`database.migrations.*` z `.env`):
+Kontem migracji (`database.migrations.*` z `.env`, a bez nich kontem API). Z SSH lub Terminala w cPanelu:
 
 ```bash
 cd ~/yeastie_api && php spark yeastie:migrate
 ```
 
-Bez SSH (Terminal w cPanelu też wystarczy): jednorazowe zadanie cron z tym samym poleceniem, usunięte po wykonaniu.
-`spark migrate -g` się do tego nie nadaje: tworzy tabelę `migrations` kontem API.
+**Bez SSH:** jednorazowe zadanie cron na najbliższą minutę, potem usunięte:
+
+```
+cd ~/yeastie_api && php -v > writable/logs/migrate.log 2>&1; php spark yeastie:migrate >> writable/logs/migrate.log 2>&1
+```
+
+W `writable/logs/migrate.log` ma być PHP 8.5 i `Migrations are up to date.` Jeśli cron ma starsze PHP, użyj pełnej ścieżki, zwykle `/opt/cpanel/ea-php85/root/usr/bin/php`.
+`spark migrate -g` się do tego nie nadaje: tworzy tabelę `migrations` kontem domyślnym.
 
 ## 7. Cron
 

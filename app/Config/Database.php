@@ -70,5 +70,10 @@ class Database extends Config
         if (ENVIRONMENT === 'testing') {
             $this->defaultGroup = 'tests';
         }
+
+        // A host with one database user: migrations run with the API user's settings.
+        if ($this->migrations['username'] === '') {
+            $this->migrations = $this->default;
+        }
     }
 }

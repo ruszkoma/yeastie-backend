@@ -131,3 +131,5 @@ _modules/*
 /secrets/
 *service-account*.json
 /build/
+/env
+/writable/dev/

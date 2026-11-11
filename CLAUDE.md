@@ -48,7 +48,7 @@ docker/                    obraz PHP jak na hostingu, init MariaDB
 - Oczekiwane błędy to `ApiProblem` → `application/problem+json` z kodem z kontraktu. Nieoczekiwane → 500 bez szczegółów.
 - Nigdy nie logujemy tokenów, payloadów ani kluczy. Sekrety tylko w `.env` i `secrets/` poza katalogiem publicznym, poza repozytorium i poza czatem.
 - Awaria Google daje 503 (`server_error`); `DELETE /me` jest wtedy wycofywane w całości.
-- Zmiana schematu = nowa migracja (nigdy edycja wdrożonej). Migracje uruchamia `yeastie:migrate` kontem migracji; konto API nie ma DDL.
+- Zmiana schematu = nowa migracja (nigdy edycja wdrożonej). Migracje uruchamia `yeastie:migrate` kontem migracji (`database.migrations.*`), a gdy go nie ma (hosting z jednym użytkownikiem bazy, stan na 2026-11-11), kontem API. Bez SSH migracje idą przez jednorazowy cron.
 
 ## Komendy
 
