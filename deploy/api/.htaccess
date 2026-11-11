@@ -9,8 +9,10 @@ ServerSignature Off
 	RewriteCond %{HTTP:Authorization} .
 	RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-	# The API is HTTPS only. No redirect: a redirected POST would lose its body.
+	# The API is HTTPS only (directly or behind a TLS proxy). No redirect: a redirected POST would
+	# lose its body.
 	RewriteCond %{HTTPS} !=on
+	RewriteCond %{HTTP:X-Forwarded-Proto} !=https
 	RewriteRule ^ - [F]
 
 	RewriteCond %{REQUEST_FILENAME} !-f
@@ -22,7 +24,3 @@ ServerSignature Off
 	ErrorDocument 404 index.php
 </IfModule>
 
-# Only the front controller is served from here.
-<FilesMatch "^(?!index\.php$).+">
-	Require all denied
-</FilesMatch>
