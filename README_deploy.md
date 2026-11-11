@@ -30,6 +30,10 @@ Wszystko w projekcie Google Cloud powiązanym z Firebase `yeastie-99dca`.
    - subskrypcja **push** na `https://yeastie.cprojekt.pl/api/v1/rtdn` z włączonym uwierzytelnianiem: konto usługi do podpisu (np. `rtdn-push@…`) i **audience** = ten sam URL,
    - Play Console → Monetization setup → wpisz temat i wyślij powiadomienie testowe (API odpowie 204).
 5. Wpisz do `.env`: `yeastie.pubsubAudience` (URL z punktu 4) i `yeastie.pubsubServiceAccountEmail` (konto podpisujące push).
+6. Sprawdzenie (jednorazowe zadanie cron, wynik w logu; nie wypisuje tokenów ani klucza, nie dotyka prawdziwych kont ani zakupów):
+   ```
+   cd ~/yeastie_backend && /opt/cpanel/ea-php85/root/usr/bin/php spark yeastie:google-check > writable/logs/google-check.log 2>&1
+   ```
 
 ## 3. Budowanie paczek (lokalnie)
 
