@@ -16,6 +16,11 @@ if (version_compare(PHP_VERSION, '8.2', '<')) {
 
 $appRoot = '__YEASTIE_APP_ROOT__';
 
+// The host turns on zlib.output_compression, which CodeIgniter refuses to run with (it breaks its
+// output buffering). Nothing has been sent yet, so it can still be switched off here; the web
+// server compresses responses on its own.
+ini_set('zlib.output_compression', '0');
+
 define('FCPATH', __DIR__ . DIRECTORY_SEPARATOR);
 if (getcwd() . DIRECTORY_SEPARATOR !== FCPATH) {
     chdir(FCPATH);
