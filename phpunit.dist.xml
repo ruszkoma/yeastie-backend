@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+    bootstrap="vendor/codeigniter4/framework/system/Test/bootstrap.php"
+    backupGlobals="false"
+    beStrictAboutOutputDuringTests="true"
+    colors="true"
+    columns="max"
+    failOnRisky="true"
+    failOnWarning="true"
+    cacheDirectory="build/.phpunit.cache"
+>
+
+    <testsuites>
+        <testsuite name="App">
+            <directory>./tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">./app</directory>
+        </include>
+        <exclude>
+            <directory suffix=".php">./app/Views</directory>
+            <file>./app/Config/Routes.php</file>
+        </exclude>
+    </source>
+
+    <php>
+        <server name="app.baseURL" value="http://example.com/"/>
+        <server name="CODEIGNITER_SCREAM_DEPRECATIONS" value="1"/>
+        <!-- Directory containing phpunit.xml -->
+        <const name="HOMEPATH" value="./"/>
+        <!-- Directory containing the Paths config file -->
+        <const name="CONFIGPATH" value="./app/Config/"/>
+        <!-- Directory containing the front controller (index.php) -->
+        <const name="PUBLICPATH" value="./public/"/>
+        <!-- Test database: the MariaDB container from docker-compose.yml -->
+        <env name="database.tests.hostname" value="db"/>
+        <env name="database.tests.database" value="yeastie_test"/>
+        <env name="database.tests.username" value="yeastie_test"/>
+        <env name="database.tests.password" value="test-local"/>
+        <env name="yeastie.firebaseProjectId" value="yeastie-test"/>
+        <env name="yeastie.pubsubAudience" value="https://api.test/v1/rtdn"/>
+        <env name="yeastie.pubsubServiceAccountEmail" value="rtdn@yeastie-test.iam.gserviceaccount.com"/>
+    </php>
+</phpunit>
