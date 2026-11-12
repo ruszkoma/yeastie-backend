@@ -11,14 +11,14 @@ use Throwable;
 /**
  * Checks the Google configuration from the server without touching any real account or purchase:
  * the service account key, a Firebase Admin lookup of a user id that cannot exist, a Play Developer
- * API lookup of a purchase token that cannot exist, and the Pub/Sub settings. Prints results only,
- * never tokens or key material. Meant for a one-off cron run (no SSH on the host).
+ * API lookup of a purchase token that cannot exist, and a pull from the RTDN subscription. Prints
+ * results only, never tokens or key material. Meant for a one-off cron run (no SSH on the host).
  */
 final class GoogleCheck extends BaseCommand
 {
     protected $group       = 'Yeastie';
     protected $name        = 'yeastie:google-check';
-    protected $description = 'Checks the service account key, Firebase Admin and Play Developer API access, and the RTDN settings.';
+    protected $description = 'Checks the service account key, Firebase Admin and Play Developer API access, and the RTDN subscription.';
 
     private const LOOKUP_URL = 'https://identitytoolkit.googleapis.com/v1/projects/%s/accounts:lookup';
     private const PLAY_URL   = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/%s/purchases/subscriptionsv2/tokens/%s';
@@ -56,11 +56,7 @@ final class GoogleCheck extends BaseCommand
         $this->checkPlay($tokens, $config->playPackageName);
 
         // 4. RTDN settings.
-        if ($config->pubsubAudience === '' || $config->pubsubServiceAccountEmail === '') {
-            $this->flag('RTDN', 'Set yeastie.pubsubAudience and yeastie.pubsubServiceAccountEmail in .env.');
-        } else {
-            $this->pass('RTDN', 'audience ' . $config->pubsubAudience . ', push signed by ' . $config->pubsubServiceAccountEmail);
-        }
+        $this->checkRtdn($config->pubsubSubscription);
 
         CLI::write($this->failed ? 'Some checks failed.' : 'All checks passed.', $this->failed ? 'red' : 'green');
 
@@ -108,6 +104,26 @@ final class GoogleCheck extends BaseCommand
             in_array($status, [401, 403], true) => $this->flag('Play Developer API', "HTTP {$status}: enable the Google Play Android Developer API and invite the service account in Play Console (new permissions can take up to 24 h)."),
             default => $this->flag('Play Developer API', "Unexpected HTTP {$status}."),
         };
+    }
+
+    /**
+     * Pulls once without acknowledging, so a waiting notification is only delayed until
+     * `yeastie:rtdn-pull` gets it after the acknowledgement deadline.
+     */
+    private function checkRtdn(string $subscription): void
+    {
+        if ($subscription === '') {
+            $this->flag('RTDN', 'Set yeastie.pubsubSubscription in .env (projects/<project>/subscriptions/<name>).');
+
+            return;
+        }
+
+        try {
+            $waiting = count(service('pubSub')->pull(1));
+            $this->pass('RTDN', "pull access granted to {$subscription}" . ($waiting > 0 ? ' (a notification is waiting).' : ' (no notifications waiting).'));
+        } catch (GoogleUnavailable $e) {
+            $this->flag('RTDN', $e->getMessage() . ' Check the subscription name, that it is a pull subscription, and that the service account has the Pub/Sub Subscriber role on it.');
+        }
     }
 
     /**

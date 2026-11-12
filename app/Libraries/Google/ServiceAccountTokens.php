@@ -16,6 +16,7 @@ final class ServiceAccountTokens
 {
     public const SCOPE_ANDROID_PUBLISHER = 'https://www.googleapis.com/auth/androidpublisher';
     public const SCOPE_IDENTITY_TOOLKIT  = 'https://www.googleapis.com/auth/identitytoolkit';
+    public const SCOPE_PUBSUB            = 'https://www.googleapis.com/auth/pubsub';
 
     /** @var array<string, array{token: string, expires: int}> */
     private array $tokens = [];

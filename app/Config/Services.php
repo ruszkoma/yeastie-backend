@@ -12,7 +12,9 @@ use App\Libraries\Auth\StaticKeySource;
 use App\Libraries\Google\FirebaseAdmin;
 use App\Libraries\Google\GoogleFirebaseAdmin;
 use App\Libraries\Google\GooglePlayDeveloperApi;
+use App\Libraries\Google\GooglePubSub;
 use App\Libraries\Google\PlayDeveloperApi;
+use App\Libraries\Google\PubSub;
 use App\Libraries\Google\ServiceAccountTokens;
 use App\Libraries\Time\Clock;
 use App\Libraries\Time\SystemClock;
@@ -27,7 +29,7 @@ use Firebase\JWT\Key;
 
 /**
  * Dependency wiring of the API. Tests replace services with `Services::injectMock()`:
- * `clock`, `firebaseKeys`, `oidcKeys`, `playDeveloperApi` and `firebaseAdmin` are the seams to
+ * `clock`, `firebaseKeys`, `oidcKeys`, `playDeveloperApi`, `pubSub` and `firebaseAdmin` are the seams to
  * time and to Google.
  */
 class Services extends BaseService
@@ -106,6 +108,13 @@ class Services extends BaseService
         return $getShared
             ? static::getSharedInstance('playDeveloperApi')
             : new GooglePlayDeveloperApi(service('serviceAccountTokens'), self::http());
+    }
+
+    public static function pubSub(bool $getShared = true): PubSub
+    {
+        return $getShared
+            ? static::getSharedInstance('pubSub')
+            : new GooglePubSub(service('serviceAccountTokens'), self::http(...), config('Yeastie')->pubsubSubscription);
     }
 
     public static function firebaseAdmin(bool $getShared = true): FirebaseAdmin

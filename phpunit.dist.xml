@@ -43,6 +43,7 @@
         <env name="database.tests.username" value="yeastie_test"/>
         <env name="database.tests.password" value="test-local"/>
         <env name="yeastie.firebaseProjectId" value="yeastie-test"/>
+        <env name="yeastie.pubsubSubscription" value="projects/yeastie-test/subscriptions/play-rtdn-pull"/>
         <env name="yeastie.pubsubAudience" value="https://api.test/v1/rtdn"/>
         <env name="yeastie.pubsubServiceAccountEmail" value="rtdn@yeastie-test.iam.gserviceaccount.com"/>
     </php>

@@ -11,7 +11,7 @@ use Config\Services;
 
 /**
  * Feature tests against the MariaDB test database, with Google replaced by fakes: tokens are
- * signed by [TestKeys], time is a [FixedClock], Play and Firebase Admin are in-memory.
+ * signed by [TestKeys], time is a [FixedClock], Play, Pub/Sub and Firebase Admin are in-memory.
  */
 abstract class ApiTestCase extends CIUnitTestCase
 {
@@ -28,6 +28,7 @@ abstract class ApiTestCase extends CIUnitTestCase
     protected FixedClock $clock;
     protected FakePlayDeveloperApi $play;
     protected FakeFirebaseAdmin $firebase;
+    protected FakePubSub $pubSub;
 
     protected function setUp(): void
     {
@@ -39,11 +40,13 @@ abstract class ApiTestCase extends CIUnitTestCase
         $this->clock   = new FixedClock();
         $this->play     = new FakePlayDeveloperApi();
         $this->firebase = new FakeFirebaseAdmin();
+        $this->pubSub   = new FakePubSub();
         Services::injectMock('clock', $this->clock);
         Services::injectMock('firebaseKeys', new StaticKeySource([TestKeys::KID => TestKeys::trustedKey()]));
         Services::injectMock('oidcKeys', new StaticKeySource([TestKeys::KID => TestKeys::trustedKey()]));
         Services::injectMock('playDeveloperApi', $this->play);
         Services::injectMock('firebaseAdmin', $this->firebase);
+        Services::injectMock('pubSub', $this->pubSub);
     }
 
     /**

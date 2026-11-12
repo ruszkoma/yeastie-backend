@@ -11,9 +11,10 @@ use Config\Yeastie;
 use stdClass;
 
 /**
- * Google Play real-time developer notifications, pushed by Pub/Sub. The notification only says
- * that something changed; the state is read again from Google. Pub/Sub retries until it gets a
- * 2xx, so a failure to reach Google is answered with 503.
+ * Google Play real-time developer notifications from Pub/Sub, pulled by `yeastie:rtdn-pull` or
+ * pushed to `POST /rtdn`. The notification only says that something changed; the state is read
+ * again from Google, so the order of notifications does not matter. Pub/Sub redelivers until the
+ * message is acknowledged (a 2xx for a push), so a failure to reach Google leaves it unacknowledged.
  */
 final class RtdnService
 {
@@ -33,8 +34,23 @@ final class RtdnService
     {
         $messageId = $push->message->messageId ?? null;
         $data      = $push->message->data ?? null;
-        if (! is_string($messageId) || $messageId === '' || strlen($messageId) > 128 || ! is_string($data)) {
+        if (! is_string($messageId) || ! is_string($data)) {
             throw ApiProblem::validation('Not a Pub/Sub push message.');
+        }
+        $this->handleMessage($messageId, $data);
+    }
+
+    /**
+     * One Pub/Sub message: `$data` is the base64 notification. Returning normally means the
+     * message is done and can be acknowledged.
+     *
+     * @throws ApiProblem when the message id is unusable
+     * @throws GoogleUnavailable
+     */
+    public function handleMessage(string $messageId, string $data): void
+    {
+        if ($messageId === '' || strlen($messageId) > 128) {
+            throw ApiProblem::validation('Not a Pub/Sub message.');
         }
         if ($this->db->query('SELECT 1 FROM rtdn_event WHERE message_id = ?', [$messageId])->getRow() !== null) {
             return;

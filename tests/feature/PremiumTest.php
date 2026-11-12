@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Libraries\Google\PubSubMessage;
 use App\Libraries\Google\SubscriptionState;
 use DateTimeImmutable;
 use Tests\Support\ApiTestCase;
@@ -291,6 +292,71 @@ final class PremiumTest extends ApiTestCase
         $this->assertProblem($this->rtdn($notification, 'd', TestKeys::sign(['iss' => 'https://evil.test'] + $claims)), 401, 'unauthorized');
         $this->assertProblem($this->rtdn($notification, 'e', TestKeys::sign($claims, 'stranger')), 401, 'unauthorized');
         $this->rtdn($notification, 'f', TestKeys::sign($claims))->assertStatus(204);
+    }
+
+    public function testPulledRtdnUpdatesPremiumAndIsAcknowledged(): void
+    {
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '+1 month', plan: 'monthly');
+        $this->api('POST', 'v1/purchases/verify', 'user-a', $this->verifyBody('tok-1'))->assertStatus(200);
+
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '+2 months', plan: 'monthly');
+        $renewal = ['subscriptionNotification' => ['notificationType' => 2, 'purchaseToken' => 'tok-1', 'subscriptionId' => 'premium']];
+        $this->pubSub->publish('m-1', ['packageName' => self::PACKAGE] + $renewal);
+        $this->pubSub->publish('m-2', ['packageName' => self::PACKAGE, 'testNotification' => ['version' => '1.0']]);
+        $this->pubSub->publish('m-3', ['packageName' => 'com.other'] + $renewal);
+        $this->pubSub->waiting['ack-bad'] = new PubSubMessage('ack-bad', 'm-4', 'not base64 json');
+        $this->pubSub->waiting['ack-id']  = new PubSubMessage('ack-id', str_repeat('x', 200), '');
+
+        command('yeastie:rtdn-pull');
+
+        $this->assertSame('2027-01-11T12:00:00.000Z', $this->entitlement('user-a')['expires_at']);
+        $this->assertSame([], $this->pubSub->waiting);
+
+        // A message Pub/Sub delivers twice is applied once.
+        $calls = $this->play->calls;
+        $this->pubSub->publish('m-1', ['packageName' => self::PACKAGE] + $renewal);
+        command('yeastie:rtdn-pull');
+        $this->assertSame($calls, $this->play->calls);
+        $this->assertSame([], $this->pubSub->waiting);
+    }
+
+    public function testPulledRtdnDrainsMoreThanOneBatch(): void
+    {
+        for ($i = 0; $i < 45; $i++) {
+            $this->pubSub->publish("m-{$i}", ['packageName' => self::PACKAGE, 'testNotification' => ['version' => '1.0']]);
+        }
+
+        command('yeastie:rtdn-pull');
+
+        $this->assertSame([], $this->pubSub->waiting);
+    }
+
+    public function testPulledRtdnStaysQueuedWhileGoogleIsDown(): void
+    {
+        $this->entitlement('user-a');
+        $this->api('POST', 'v1/trial', 'user-a');
+        $purchase = ['subscriptionNotification' => ['notificationType' => 4, 'purchaseToken' => 'tok-1', 'subscriptionId' => 'premium']];
+        $this->pubSub->publish('m-1', ['packageName' => self::PACKAGE, 'testNotification' => ['version' => '1.0']]);
+        $this->pubSub->publish('m-2', ['packageName' => self::PACKAGE] + $purchase);
+        $this->pubSub->publish('m-3', ['packageName' => self::PACKAGE, 'testNotification' => ['version' => '1.0']]);
+
+        // Play is down: what was applied before the failure is acknowledged, the rest waits.
+        $this->play->unavailable = true;
+        command('yeastie:rtdn-pull');
+        $this->assertSame(['ack-m-2', 'ack-m-3'], array_keys($this->pubSub->waiting));
+        $this->assertSame('trial', $this->entitlement('user-a')['tier']);
+
+        // Pub/Sub is down: nothing is lost.
+        $this->play->unavailable   = false;
+        $this->pubSub->unavailable = true;
+        command('yeastie:rtdn-pull');
+        $this->assertCount(2, $this->pubSub->waiting);
+
+        $this->pubSub->unavailable          = false;
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a');
+        command('yeastie:rtdn-pull');
+        $this->assertSame([], $this->pubSub->waiting);
+        $this->assertSame('premium', $this->entitlement('user-a')['tier']);
     }
 
     public function testExpiredTrialAndExpiredPremiumKeepNoAccess(): void

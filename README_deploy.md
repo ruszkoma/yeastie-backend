@@ -25,11 +25,12 @@ Wszystko w projekcie Google Cloud powiązanym z Firebase `yeastie-99dca`.
    - klucz JSON → `~/yeastie_backend/secrets/service-account.json` (uprawnienia `600`). Klucz nie trafia do repozytorium, czatu ani maila.
 2. Włącz **Google Play Android Developer API** w tym projekcie.
 3. **Play Console** → Users and permissions → zaproś e-mail konta usługi z uprawnieniami *View financial data* oraz *Manage orders and subscriptions* dla aplikacji `pl.cprojekt.yeastie`.
-4. **RTDN** (Pub/Sub):
-   - temat np. `play-rtdn`; nadaj `google-play-developer-notifications@system.gserviceaccount.com` rolę **Pub/Sub Publisher** na temacie,
-   - subskrypcja **push** na `https://yeastie.cprojekt.pl/api/v1/rtdn` z włączonym uwierzytelnianiem: konto usługi do podpisu (np. `rtdn-push@…`) i **audience** = ten sam URL,
-   - Play Console → Monetization setup → wpisz temat i wyślij powiadomienie testowe (API odpowie 204).
-5. Wpisz do `.env`: `yeastie.pubsubAudience` (URL z punktu 4) i `yeastie.pubsubServiceAccountEmail` (konto podpisujące push).
+4. **RTDN** (Pub/Sub, tryb **pull**). Zapora hostingu odrzuca żądania push z Google Cloud (sprawdzone 2026-11-12: timeout połączenia, brak wpisów w logu dostępu, także z regionów europejskich), więc API samo pobiera powiadomienia cronem `yeastie:rtdn-pull`:
+   - temat `play-rtdn`; nadaj `google-play-developer-notifications@system.gserviceaccount.com` rolę **Pub/Sub Publisher** na temacie,
+   - subskrypcja `play-rtdn-pull` typu **pull**, termin potwierdzenia 60 s,
+   - na tej subskrypcji nadaj kontu usługi API (`yeastie-api@…`) rolę **Pub/Sub Subscriber** (`roles/pubsub.subscriber`),
+   - Play Console → Monetization setup → wpisz temat `projects/yeastie-99dca/topics/play-rtdn` i wyślij powiadomienie testowe.
+5. Wpisz do `.env`: `yeastie.pubsubSubscription = projects/yeastie-99dca/subscriptions/play-rtdn-pull`. Punkt `POST /rtdn` (push, `yeastie.pubsubAudience` i `yeastie.pubsubServiceAccountEmail`) zostaje w kodzie na wypadek hostingu bez tej blokady; bez tych wpisów odrzuca każde żądanie.
 6. Sprawdzenie (jednorazowe zadanie cron, wynik w logu; nie wypisuje tokenów ani klucza, nie dotyka prawdziwych kont ani zakupów):
    ```
    cd ~/yeastie_backend && /opt/cpanel/ea-php85/root/usr/bin/php spark yeastie:google-check > writable/logs/google-check.log 2>&1
@@ -85,6 +86,14 @@ Raz dziennie (cPanel → Cron Jobs):
 ```
 
 Usuwa wpisy idempotencji synchronizacji i identyfikatory RTDN starsze niż 30 dni.
+
+Co 5 minut:
+
+```
+*/5 * * * * cd ~/yeastie_backend && /opt/cpanel/ea-php85/root/usr/bin/php spark yeastie:rtdn-pull > writable/logs/rtdn-pull.log 2>&1
+```
+
+Pobiera powiadomienia Google Play (odnowienia, anulowania, zwroty) z Pub/Sub i aktualizuje uprawnienia. Log zawiera wynik ostatniego uruchomienia (`Applied N notifications.`), bez tokenów. Zakup nie zależy od tego zadania: aplikacja potwierdza go od razu przez `POST /purchases/verify`. Pub/Sub trzyma niepotwierdzone wiadomości 7 dni.
 
 ## 8. Sprawdzenie
 

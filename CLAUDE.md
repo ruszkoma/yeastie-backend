@@ -6,7 +6,7 @@ Wytyczne dla Claude Code przy pracy nad API aplikacji Yeastie. Opis produktu i z
 
 ## Zakres
 
-API z kontraktu `../docs/api/openapi.yaml` (źródło prawdy dla klienta i backendu): `GET/POST /sync`, `GET /entitlement`, `POST /trial`, `POST /purchases/verify`, `POST /rtdn`, `DELETE /me`. Zmiana zachowania API zaczyna się od zmiany kontraktu i klienta w `../mobile`.
+API z kontraktu `../docs/api/openapi.yaml` (źródło prawdy dla klienta i backendu): `GET/POST /sync`, `GET /entitlement`, `POST /trial`, `POST /purchases/verify`, `POST /rtdn`, `DELETE /me`. Powiadomienia RTDN w produkcji pobiera cron `yeastie:rtdn-pull` (Pub/Sub pull), bo zapora hostingu odrzuca push; `POST /rtdn` zostaje jako druga droga. Zmiana zachowania API zaczyna się od zmiany kontraktu i klienta w `../mobile`.
 
 ## Stos
 
@@ -19,18 +19,18 @@ API z kontraktu `../docs/api/openapi.yaml` (źródło prawdy dla klienta i backe
 ```
 app/
   Config/Yeastie.php       ustawienia API (wartości z .env, prefiks yeastie.)
-  Config/Services.php      wiązanie zależności; szwy testowe: clock, firebaseKeys, oidcKeys, playDeveloperApi, firebaseAdmin
+  Config/Services.php      wiązanie zależności; szwy testowe: clock, firebaseKeys, oidcKeys, playDeveloperApi, pubSub, firebaseAdmin
   Config/Routes.php        grupa v1, filtry firebaseAuth / pubSubAuth
   Controllers/             cienkie: JSON, ApiProblem → problem+json
   Filters/                 FirebaseAuth (token, użytkownik, limit żądań), PubSubAuth (OIDC od Pub/Sub)
   Libraries/Auth/          JwtVerifier (tylko RS256), FirebaseTokenVerifier, PubSubTokenVerifier, GoogleKeySource
-  Libraries/Google/        ServiceAccountTokens, PlayDeveloperApi, FirebaseAdmin (interfejsy + implementacje)
+  Libraries/Google/        ServiceAccountTokens, PlayDeveloperApi, PubSub, FirebaseAdmin (interfejsy + implementacje)
   Libraries/Http/          ApiProblem, Problems, ProblemExceptionHandler
   Libraries/Time/          Clock, Iso (ISO 8601 UTC z ms ↔ DATETIME(3))
   Services/Sync/           SyncService (reguły scalania), ChangeIn, EntityTypes
   Services/Premium/        EntitlementService, PurchaseService, RtdnService
   Services/AccountService  DELETE /me
-  Commands/                yeastie:migrate, yeastie:cleanup
+  Commands/                yeastie:migrate, yeastie:cleanup, yeastie:rtdn-pull (cron co 5 min), yeastie:google-check
   Database/Migrations/
 deploy/api/                front controller i .htaccess dla <docroot>/api/
 tools/                     build.sh, smoke.sh, smoke.php

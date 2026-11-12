@@ -21,7 +21,17 @@ class Yeastie extends BaseConfig
 
     public string $premiumProductId = 'premium';
 
-    /** Audience configured on the Pub/Sub push subscription for RTDN (usually the endpoint URL). */
+    /**
+     * Pull subscription with Google Play notifications (RTDN), read by `yeastie:rtdn-pull`:
+     * `projects/<project>/subscriptions/<name>`. The host's firewall drops Pub/Sub push requests,
+     * so the API fetches the notifications itself.
+     */
+    public string $pubsubSubscription = '';
+
+    /**
+     * Push delivery to `POST /rtdn`, unused while the host blocks it: the audience configured on
+     * the push subscription (usually the endpoint URL).
+     */
     public string $pubsubAudience = '';
 
     /** Service account that Pub/Sub uses to sign push requests. */
