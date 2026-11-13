@@ -210,6 +210,47 @@ final class PremiumTest extends ApiTestCase
         $this->assertSame('free', $this->entitlement('user-a')['tier']);
     }
 
+    public function testRenewalIsReadFromGoogleBeforeItsNotificationArrives(): void
+    {
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '+1 month', plan: 'monthly');
+        $this->api('POST', 'v1/purchases/verify', 'user-a', $this->verifyBody('tok-1'))->assertStatus(200);
+        $calls = $this->play->calls;
+
+        // While the paid period runs, Google is not asked.
+        $this->assertSame('premium', $this->entitlement('user-a')['tier']);
+        $this->assertSame($calls, $this->play->calls);
+
+        // The period ended and Google renewed, but no notification was pulled yet.
+        $this->clock->advance('+1 month +1 minute');
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '+1 month', plan: 'monthly');
+        $entitlement = $this->entitlement('user-a');
+        $this->assertSame('premium', $entitlement['tier']);
+        $this->assertSame($calls + 1, $this->play->calls);
+    }
+
+    public function testLapsedPurchaseIsAskedAboutOncePerMinuteAndSurvivesAnOutage(): void
+    {
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '+1 month', plan: 'monthly');
+        $this->api('POST', 'v1/purchases/verify', 'user-a', $this->verifyBody('tok-1'))->assertStatus(200);
+        $this->clock->advance('+1 month +1 minute');
+
+        // Google is down: the stored state answers.
+        $this->play->unavailable = true;
+        $this->assertSame('free', $this->entitlement('user-a')['tier']);
+
+        // Google still reports the old period: asked once, then not again within a minute.
+        $this->play->unavailable            = false;
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '-1 minute', plan: 'monthly');
+        $this->assertSame('free', $this->entitlement('user-a')['tier']);
+        $calls = $this->play->calls;
+        $this->assertSame('free', $this->entitlement('user-a')['tier']);
+        $this->assertSame($calls, $this->play->calls);
+
+        $this->clock->advance('+2 minutes');
+        $this->play->subscriptions['tok-1'] = $this->subscription('user-a', expires: '+1 month', plan: 'monthly');
+        $this->assertSame('premium', $this->entitlement('user-a')['tier']);
+    }
+
     public function testRtdnRefundRevokesPremiumAndStaysRevoked(): void
     {
         $this->play->subscriptions['tok-1'] = $this->subscription('user-a');

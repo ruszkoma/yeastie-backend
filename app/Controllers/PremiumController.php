@@ -10,9 +10,12 @@ final class PremiumController extends BaseController
     /** `GET /entitlement` */
     public function entitlement(): ResponseInterface
     {
-        return $this->guarded(fn (): ResponseInterface => $this->json(
-            service('entitlementService')->current(service('currentUser')->uid()),
-        ));
+        return $this->guarded(function (): ResponseInterface {
+            $uid = service('currentUser')->uid();
+            service('purchaseService')->refreshLapsed($uid);
+
+            return $this->json(service('entitlementService')->current($uid));
+        });
     }
 
     /** `POST /trial` */

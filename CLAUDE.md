@@ -6,7 +6,7 @@ Wytyczne dla Claude Code przy pracy nad API aplikacji Yeastie. Opis produktu i z
 
 ## Zakres
 
-API z kontraktu `../docs/api/openapi.yaml` (źródło prawdy dla klienta i backendu): `GET/POST /sync`, `GET /entitlement`, `POST /trial`, `POST /purchases/verify`, `POST /rtdn`, `DELETE /me`. Powiadomienia RTDN w produkcji pobiera cron `yeastie:rtdn-pull` (Pub/Sub pull), bo zapora hostingu odrzuca push; `POST /rtdn` zostaje jako druga droga. Zmiana zachowania API zaczyna się od zmiany kontraktu i klienta w `../mobile`.
+API z kontraktu `../docs/api/openapi.yaml` (źródło prawdy dla klienta i backendu): `GET/POST /sync`, `GET /entitlement`, `POST /trial`, `POST /purchases/verify`, `POST /rtdn`, `DELETE /me`. Powiadomienia RTDN w produkcji pobiera cron `yeastie:rtdn-pull` (Pub/Sub pull), bo zapora hostingu odrzuca push; `POST /rtdn` zostaje jako druga droga. `GET /entitlement` najpierw odpytuje Google o zakupy z automatycznym odnawianiem, których okres właśnie minął (`PurchaseService::refreshLapsed`, najwyżej raz na minutę na zakup), żeby premium nie znikało między odnowieniem a następnym pobraniem RTDN. Zmiana zachowania API zaczyna się od zmiany kontraktu i klienta w `../mobile`.
 
 ## Stos
 

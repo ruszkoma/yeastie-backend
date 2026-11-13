@@ -24,6 +24,8 @@ final class PurchaseService
     public const SUPERSEDED = 'SUPERSEDED';
 
     private const MAX_TOKEN_LENGTH = 4096;
+    private const LAPSED_WINDOW_DAYS   = 3;
+    private const LAPSED_RETRY_SECONDS = 60;
 
     public function __construct(
         private readonly BaseConnection $db,
@@ -120,6 +122,34 @@ final class PurchaseService
             $this->db->transRollback();
 
             throw $e;
+        }
+    }
+
+    /**
+     * `GET /entitlement` calls this first. A renewal reaches the API only with the next RTDN pull,
+     * so right after the paid period ends a subscription that renews looks expired here. Such
+     * purchases are read from Google again, at most once per [LAPSED_RETRY_SECONDS] each.
+     *
+     * Never fails the request: when Google is down the stored state answers.
+     */
+    public function refreshLapsed(string $uid): void
+    {
+        $now  = $this->clock->now();
+        $rows = $this->db->query(
+            'SELECT purchase_token FROM purchase
+             WHERE user_id = ? AND auto_renewing = 1 AND state IN ? AND expires_at <= ? AND expires_at > ? AND updated_at <= ?',
+            [$uid, SubscriptionState::ENTITLED_STATES, Iso::toDb($now), Iso::toDb($now->modify('-' . self::LAPSED_WINDOW_DAYS . ' days')),
+                Iso::toDb($now->modify('-' . self::LAPSED_RETRY_SECONDS . ' seconds'))],
+        )->getResult();
+
+        foreach ($rows as $row) {
+            try {
+                $this->refresh($row->purchase_token);
+            } catch (GoogleUnavailable $e) {
+                log_message('error', 'Lapsed purchase not refreshed: {message}', ['message' => $e->getMessage()]);
+
+                return;
+            }
         }
     }
 
